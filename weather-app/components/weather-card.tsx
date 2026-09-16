@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Droplets, Wind, Thermometer } from "lucide-react";
+import { Droplets, Wind, Thermometer, Gauge, Eye, Sunrise, Sunset } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -7,7 +7,27 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { cityTime } from "@/lib/format-time";
+import { windDirection } from "@/lib/forecast";
 import type { WeatherResponse } from "@/lib/types";
+
+function Stat({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center gap-1.5 py-3">
+      <Icon className="size-4 text-muted-foreground" />
+      <span className="text-sm font-medium">{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+    </div>
+  );
+}
 
 export function WeatherCard({ data }: { data: WeatherResponse }) {
   const condition = data.weather[0];
@@ -33,22 +53,36 @@ export function WeatherCard({ data }: { data: WeatherResponse }) {
         </CardTitle>
         <p className="text-sm capitalize text-sky-100">{condition.description}</p>
       </CardHeader>
-      <CardContent className="py-5">
-        <div className="flex items-center justify-between text-center text-sm">
-          <div className="flex flex-1 flex-col items-center gap-1.5">
-            <Thermometer className="size-4 text-muted-foreground" />
-            <span className="font-medium">{Math.round(data.main.feels_like)}°C</span>
-            <span className="text-xs text-muted-foreground">Feels like</span>
-          </div>
-          <div className="flex flex-1 flex-col items-center gap-1.5 border-x">
-            <Droplets className="size-4 text-muted-foreground" />
-            <span className="font-medium">{data.main.humidity}%</span>
-            <span className="text-xs text-muted-foreground">Humidity</span>
-          </div>
-          <div className="flex flex-1 flex-col items-center gap-1.5">
-            <Wind className="size-4 text-muted-foreground" />
-            <span className="font-medium">{data.wind.speed} m/s</span>
-            <span className="text-xs text-muted-foreground">Wind</span>
+      <CardContent className="divide-y p-0">
+        <div className="grid grid-cols-3 divide-x">
+          <Stat
+            icon={Thermometer}
+            label="Feels like"
+            value={`${Math.round(data.main.feels_like)}°C`}
+          />
+          <Stat icon={Droplets} label="Humidity" value={`${data.main.humidity}%`} />
+          <Stat
+            icon={Wind}
+            label="Wind"
+            value={`${data.wind.speed} m/s ${windDirection(data.wind.deg)}`}
+          />
+        </div>
+        <div className="grid grid-cols-3 divide-x">
+          <Stat icon={Gauge} label="Pressure" value={`${data.main.pressure} hPa`} />
+          <Stat
+            icon={Eye}
+            label="Visibility"
+            value={`${(data.visibility / 1000).toFixed(1)} km`}
+          />
+          <div className="flex flex-1 flex-col items-center justify-center gap-1 py-3 text-xs">
+            <span className="flex items-center gap-1">
+              <Sunrise className="size-3.5 text-muted-foreground" />
+              {cityTime(data.sys.sunrise, data.timezone)}
+            </span>
+            <span className="flex items-center gap-1">
+              <Sunset className="size-3.5 text-muted-foreground" />
+              {cityTime(data.sys.sunset, data.timezone)}
+            </span>
           </div>
         </div>
       </CardContent>
