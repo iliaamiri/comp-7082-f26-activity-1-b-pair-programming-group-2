@@ -1,52 +1,102 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { AlertCircle } from "lucide-react";
+import { CloudSun, AlertCircle } from "lucide-react";
+import { WeatherSearch } from "@/components/weather-search";
 import { WeatherCard } from "@/components/weather-card";
+import { TemperatureChart } from "@/components/temperature-chart";
+import { DailyForecast } from "@/components/daily-forecast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { sampleWeather } from "@/lib/sample-weather";
+import { groupForecastByDay } from "@/lib/forecast";
+import { vancouverWeather, vancouverForecast } from "@/lib/sample-weather";
+import type { ForecastResponse, WeatherResponse } from "@/lib/types";
 
-// not linked from the real app - just a place to eyeball every state the
-// weather card can be in without hitting the api or waiting on real data
+// same layout as the real page, just pre-loaded with a fake Vancouver
+// result (current + forecast) so we can see what a lookup actually looks
+// like without the real api wired up yet. not linked from the app.
 export default function DemoPage() {
+  const [data, setData] = useState<WeatherResponse | null>(vancouverWeather);
+  const [forecast, setForecast] = useState<ForecastResponse | null>(vancouverForecast);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSearch(city: string) {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const [weatherRes, forecastRes] = await Promise.all([
+        fetch(`/api/weather?city=${encodeURIComponent(city)}`),
+        fetch(`/api/forecast?city=${encodeURIComponent(city)}`),
+      ]);
+      const weatherBody = await weatherRes.json();
+
+      if (!weatherRes.ok) {
+        throw new Error(weatherBody.error ?? "Something went wrong");
+      }
+
+      setData(weatherBody);
+      setForecast(forecastRes.ok ? await forecastRes.json() : null);
+    } catch (err) {
+      setData(null);
+      setForecast(null);
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
-    <div className="flex flex-1 flex-col items-center gap-10 bg-muted/30 px-4 py-16">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">UI demo</h1>
-        <p className="max-w-md text-sm text-muted-foreground">
-          hardcoded fixtures so we can see every state without waiting on the
-          real api.{" "}
-          <Link href="/" className="underline underline-offset-4">
-            back to the actual app
-          </Link>
-        </p>
-      </div>
-
-      <div className="grid w-full max-w-4xl grid-cols-1 gap-6 sm:grid-cols-2">
-        {sampleWeather.map((sample) => (
-          <div key={sample.label} className="flex flex-col gap-2">
-            <span className="text-xs font-medium uppercase text-muted-foreground">
-              {sample.label}
-            </span>
-            <WeatherCard data={sample} />
-          </div>
-        ))}
-
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium uppercase text-muted-foreground">
-            Loading
-          </span>
-          <Skeleton className="h-32 w-full rounded-xl" />
+    <div className="flex flex-1 flex-col items-center bg-gradient-to-b from-sky-50 via-white to-white px-4 py-16 dark:from-slate-950 dark:via-background dark:to-background">
+      <div className="flex w-full max-w-md flex-col items-center gap-8">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <CloudSun className="size-9 text-sky-500" />
+          <h1 className="text-2xl font-semibold tracking-tight">Weather</h1>
+          <p className="text-sm text-muted-foreground">
+            demo view - loaded with fake Vancouver data.{" "}
+            <Link href="/" className="underline underline-offset-4">
+              real app
+            </Link>
+          </p>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium uppercase text-muted-foreground">
-            Error
-          </span>
-          <Alert variant="destructive">
-            <AlertCircle className="size-4" />
-            <AlertTitle>Couldn&apos;t fetch weather</AlertTitle>
-            <AlertDescription>City not found</AlertDescription>
-          </Alert>
+        <WeatherSearch onSearch={handleSearch} isLoading={isLoading} />
+
+        <div className="flex w-full flex-col gap-4">
+          {isLoading && (
+            <div className="space-y-4">
+              <Skeleton className="h-56 w-full rounded-xl" />
+              <Skeleton className="h-48 w-full rounded-xl" />
+            </div>
+          )}
+
+          {!isLoading && error && (
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertTitle>Couldn&apos;t fetch weather</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {!isLoading && !error && data && (
+            <>
+              <WeatherCard data={data} />
+              {forecast && (
+                <>
+                  <TemperatureChart
+                    entries={forecast.list.slice(0, 8)}
+                    timezone={forecast.city.timezone}
+                  />
+                  <DailyForecast
+                    days={groupForecastByDay(forecast.list, forecast.city.timezone).slice(0, 5)}
+                    timezone={forecast.city.timezone}
+                  />
+                </>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
