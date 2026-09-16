@@ -1,5 +1,35 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Where things stand (frontend done, backend + deployment left)
+
+Frontend's built with shadcn/ui - search bar, current conditions card,
+24h temp chart, 5-day forecast strip. All of it runs on fake data right
+now so nobody's blocked. Run `bun dev` and check out `/demo` for a
+pre-loaded view, or `/` to actually search (still fake data, any city
+works).
+
+**Backend - wiring up the real OpenWeatherMap calls:**
+
+- Get a free key at https://openweathermap.org/api, drop it in
+  `.env.local` as `OPENWEATHER_API_KEY` (see `.env.example`)
+- Two routes to fill in, both already return the exact shape the real
+  API sends back, so the frontend shouldn't need any changes:
+  - `app/api/weather/route.ts` -> `GET /data/2.5/weather?q={city}&appid={key}&units=metric`
+  - `app/api/forecast/route.ts` -> `GET /data/2.5/forecast?q={city}&appid={key}&units=metric`
+- Both have a `TODO(backend)` comment at the top with the details.
+  Should just be a `fetch` + return the JSON, maybe handle the
+  city-not-found case (OWM returns `cod: "404"` for that)
+- Both are free tier, no card needed
+
+**Deployment:**
+
+- Plain Next.js app, nothing unusual - `vercel deploy` should work
+  as-is once it's linked to a project
+- Just needs `OPENWEATHER_API_KEY` set as an env var on the Vercel
+  project (Settings -> Environment Variables) once backend's done
+- Probably worth doing a deploy now even with fake data, just to make
+  sure the pipeline works before we're up against the deadline
+
 ## Getting Started
 
 First, run the development server:
