@@ -4,12 +4,16 @@ import { useState } from "react";
 import { CloudSun, AlertCircle } from "lucide-react";
 import { WeatherSearch } from "@/components/weather-search";
 import { WeatherCard } from "@/components/weather-card";
+import { TemperatureChart } from "@/components/temperature-chart";
+import { DailyForecast } from "@/components/daily-forecast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { WeatherResponse } from "@/lib/types";
+import { groupForecastByDay } from "@/lib/forecast";
+import type { ForecastResponse, WeatherResponse } from "@/lib/types";
 
 export default function Home() {
   const [data, setData] = useState<WeatherResponse | null>(null);
+  const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,16 +22,21 @@ export default function Home() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
-      const body = await res.json();
+      const [weatherRes, forecastRes] = await Promise.all([
+        fetch(`/api/weather?city=${encodeURIComponent(city)}`),
+        fetch(`/api/forecast?city=${encodeURIComponent(city)}`),
+      ]);
+      const weatherBody = await weatherRes.json();
 
-      if (!res.ok) {
-        throw new Error(body.error ?? "Something went wrong");
+      if (!weatherRes.ok) {
+        throw new Error(weatherBody.error ?? "Something went wrong");
       }
 
-      setData(body);
+      setData(weatherBody);
+      setForecast(forecastRes.ok ? await forecastRes.json() : null);
     } catch (err) {
       setData(null);
+      setForecast(null);
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsLoading(false);
@@ -35,7 +44,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-gradient-to-b from-sky-50 via-white to-white px-4 py-16 dark:from-slate-950 dark:via-background dark:to-background">
+    <div className="flex flex-1 flex-col items-center bg-gradient-to-b from-sky-50 via-white to-white px-4 py-16 dark:from-slate-950 dark:via-background dark:to-background">
       <div className="flex w-full max-w-md flex-col items-center gap-8">
         <div className="flex flex-col items-center gap-2 text-center">
           <CloudSun className="size-9 text-sky-500" />
@@ -47,10 +56,11 @@ export default function Home() {
 
         <WeatherSearch onSearch={handleSearch} isLoading={isLoading} />
 
-        <div className="w-full">
+        <div className="flex w-full flex-col gap-4">
           {isLoading && (
-            <div className="space-y-3">
-              <Skeleton className="h-32 w-full rounded-xl" />
+            <div className="space-y-4">
+              <Skeleton className="h-56 w-full rounded-xl" />
+              <Skeleton className="h-48 w-full rounded-xl" />
             </div>
           )}
 
@@ -62,7 +72,23 @@ export default function Home() {
             </Alert>
           )}
 
-          {!isLoading && !error && data && <WeatherCard data={data} />}
+          {!isLoading && !error && data && (
+            <>
+              <WeatherCard data={data} />
+              {forecast && (
+                <>
+                  <TemperatureChart
+                    entries={forecast.list.slice(0, 8)}
+                    timezone={forecast.city.timezone}
+                  />
+                  <DailyForecast
+                    days={groupForecastByDay(forecast.list, forecast.city.timezone).slice(0, 5)}
+                    timezone={forecast.city.timezone}
+                  />
+                </>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
