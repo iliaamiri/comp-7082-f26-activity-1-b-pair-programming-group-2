@@ -1,5 +1,4 @@
-import { fakeWeatherFor } from "@/app/api/weather/route";
-import { fakeForecastFor } from "@/app/api/forecast/route";
+import { fakeWeatherFor, fakeForecastFor } from "@/lib/faker";
 
 // reuses the same mock generators the api routes use, just called
 // directly so /demo doesn't need a network round trip
