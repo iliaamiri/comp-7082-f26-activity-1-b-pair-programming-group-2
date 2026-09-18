@@ -62,3 +62,22 @@ export type ForecastResponse = {
 export type WeatherError = {
   error: string;
 };
+
+export type CitySuggestion = {
+  placeId: string;
+  city: string;
+  region: string;
+};
+
+export type PlacesResponse = {
+  suggestions?: {
+    placePrediction?: {
+      placeId?: string;
+      structuredFormat?: {
+        mainText?: { text?: string };
+        secondaryText?: { text?: string };
+      };
+    };
+  }[];
+};
+
