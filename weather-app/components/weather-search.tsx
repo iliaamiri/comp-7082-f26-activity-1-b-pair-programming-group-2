@@ -56,11 +56,11 @@ export function WeatherSearch({
 
   function select(suggestion: CitySuggestion) {
     justSelected.current = suggestion.city;
-    setCity(suggestion.city);
+    setCity(suggestion.city + (suggestion.region ? `, ${suggestion.region}` : ""));
     setSuggestions([]);
     setIsOpen(false);
     setHighlighted(-1);
-    onSearch(suggestion.city);
+    onSearch(suggestion.city + (suggestion.region ? `, ${suggestion.region}` : ""));
   }
 
   function submit() {

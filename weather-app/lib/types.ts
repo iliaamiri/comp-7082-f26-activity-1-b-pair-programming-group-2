@@ -67,6 +67,7 @@ export type CitySuggestion = {
   placeId: string;
   city: string;
   region: string;
+  fullLocation: string;
 };
 
 export type PlacesResponse = {

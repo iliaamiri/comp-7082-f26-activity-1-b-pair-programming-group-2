@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
       placeId: p!.placeId!,
       city: p!.structuredFormat!.mainText!.text!,
       region: p!.structuredFormat?.secondaryText?.text ?? "",
-    }));
+      fullLocation: `${p!.structuredFormat!.mainText!.text!}${p!.structuredFormat?.secondaryText?.text ? `, ${p!.structuredFormat!.secondaryText!.text!}` : ""}`,
+    })) as CitySuggestion[];
 
   return NextResponse.json({ suggestions });
 }
