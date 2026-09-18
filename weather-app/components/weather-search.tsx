@@ -55,12 +55,14 @@ export function WeatherSearch({
   }, [debouncedCity]);
 
   function select(suggestion: CitySuggestion) {
-    justSelected.current = suggestion.city;
-    setCity(suggestion.city + (suggestion.region ? `, ${suggestion.region}` : ""));
+    const label = suggestion.city + (suggestion.region ? `, ${suggestion.region}` : "");
+
+    justSelected.current = label;
+    setCity(label);
     setSuggestions([]);
     setIsOpen(false);
     setHighlighted(-1);
-    onSearch(suggestion.city + (suggestion.region ? `, ${suggestion.region}` : ""));
+    onSearch(label);
   }
 
   function submit() {
