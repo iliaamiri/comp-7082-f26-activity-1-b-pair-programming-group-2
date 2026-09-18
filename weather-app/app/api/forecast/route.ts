@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ForecastEntry, ForecastResponse } from "@/lib/types";
 
-// TODO(backend): swap this mock for a real call to OpenWeatherMap.
-// GET https://api.openweathermap.org/data/2.5/forecast?q={city}&appid={OPENWEATHER_API_KEY}&units=metric
-// Free tier, no card required. Returns one entry every 3 hours for ~5 days.
-// The shape below matches that response, so the frontend shouldn't need
-// any changes once this is wired up.
-
 const CONDITIONS = [
   { main: "Clear", description: "clear sky", icon: "01d" },
   { main: "Clouds", description: "scattered clouds", icon: "03d" },
@@ -26,13 +20,11 @@ export function fakeForecastFor(city: string): ForecastResponse {
   const baseTemp = 10 + (seed % 20);
   const timezone = ((seed % 27) - 12) * 3600;
   const now = Math.floor(Date.now() / 1000);
-  // round down to the nearest 3h slot, like OWM does
   const firstSlot = Math.floor(now / (3 * 3600)) * 3 * 3600;
 
   const list: ForecastEntry[] = Array.from({ length: 40 }, (_, i) => {
     const dt = firstSlot + i * 3 * 3600;
     const hourOfDay = ((dt + timezone) / 3600) % 24;
-    // day/night sine wave so the chart actually looks like weather
     const dayNightSwing = Math.sin(((hourOfDay - 6) / 24) * 2 * Math.PI) * 6;
     const drift = Math.sin((i / 40) * Math.PI * 2 + seed) * 3;
     const temp = Math.round((baseTemp + dayNightSwing + drift) * 10) / 10;
@@ -64,5 +56,59 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "City is required" }, { status: 400 });
   }
 
-  return NextResponse.json(fakeForecastFor(city));
+  const apiKey = process.env.OPENWEATHER_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "API key not configured" },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const res = await fetch(
+      `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`,
+      { 
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip"
+        }
+      }
+    );
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      let errorBody: any = { error: "Failed to fetch forecast" };
+      
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.cod === "404") {
+          errorBody = { error: "City not found" };
+        } else {
+          errorBody = { error: errorJson.message || errorJson.error || "Unknown error" };
+        }
+      } catch {
+        errorBody = { error: `HTTP ${res.status}: ${errorText}` };
+      }
+
+      if (res.status === 404) {
+        return NextResponse.json(errorBody, { status: 404 });
+      }
+      throw new Error(errorBody.error);
+    }
+
+    const data: ForecastResponse = await res.json();
+    
+    if (!data.city?.name) {
+      data.city = { name: city, timezone: data.city?.timezone || 0 };
+    }
+
+    return NextResponse.json(data);
+  } catch (e) {
+    console.error("Forecast fetch error:", e);
+    return NextResponse.json(
+      { error: "Failed to fetch forecast" },
+      { status: 500 }
+    );
+  }
 }
